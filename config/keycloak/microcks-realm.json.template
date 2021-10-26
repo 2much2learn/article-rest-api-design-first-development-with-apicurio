@@ -109,13 +109,13 @@
         "+"
       ],
       "redirectUris": [
-        "http://$HOST:8900/*"
+        "http://<IP_ADDRESS>:9900/*"
       ],
       "fullScopeAllowed": false
     },
     {
       "name": "microcks-serviceaccount",
-      "secret": "$SERVICE_CLIENT_SECRET",
+      "secret": "a3c19cda-d9f7-46d2-95a0-ef14b047a486",
       "enabled": true,
       "bearerOnly": false,
       "publicClient": false,

@@ -1,0 +1,214 @@
+version: '3'
+
+volumes:
+  postgres_data:
+    driver: local
+  postgre_apicurio:
+  mongo_data2: {}
+
+networks:
+  main:
+
+services:
+  jboss-keycloak-postgresql:
+    image: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${KC_SQL_DATABASE}
+      POSTGRES_USER: ${KC_SQL_USER}
+      POSTGRES_PASSWORD: ${KC_SQL_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  jboss-keycloak:
+    image: 'as-keycloak'
+    build: ./keycloak
+    depends_on: [jboss-keycloak-postgresql]
+    ports:
+      - '9090:8080'
+    volumes:
+      - ./config/keycloak:/microcks-keycloak-config
+    environment:
+      KEYCLOAK_USER: ${KEYCLOAK_USER}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_PASSWORD}
+      KEYCLOAK_IMPORT: /microcks-keycloak-config/apicurio-realm.json,/microcks-keycloak-config/microcks-realm.json
+
+      DB_VENDOR: ${DB_VENDOR}
+      DB_ADDR: ${DB_ADDR}
+      DB_DATABASE: ${KC_SQL_DATABASE}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+      JDBC_PARAMS: "connectTimeout=30000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+  
+  apicurio-studio-db:
+    image: 'postgres:9.6'
+    environment:
+      POSTGRES_DB: ${AS_DATABASE}
+      POSTGRES_USER: ${AS_DB_USER}
+      POSTGRES_PASSWORD: ${AS_DB_PASSWORD}
+    volumes:
+      - 'postgre_apicurio:/var/lib/postgresql/data'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  apicurio-studio-ws:
+    image: 'apicurio/apicurio-studio-ws:${APICURIO_WS_VERSION}'
+    depends_on:
+      - apicurio-studio-db
+    ports:
+      - '9092:8080'
+    environment:
+      JAVA_TOOL_OPTIONS: '-Djava.net.preferIPv4Stack=true'
+
+      QUARKUS_PROFILE: ${QUARKUS_PROFILE}
+
+      APICURIO_HUB_STORAGE_JDBC_TYPE: ${APICURIO_DB_TYPE}
+      APICURIO_DB_DRIVER_NAME: ${APICURIO_DB_DRIVER_NAME}
+      APICURIO_DB_CONNECTION_URL: ${APICURIO_DB_CONNECTION_URL}
+      APICURIO_DB_USER_NAME: ${APICURIO_DB_USER_NAME}
+      APICURIO_DB_PASSWORD: ${APICURIO_DB_PASSWORD}
+      APICURIO_DB_INITIALIZE: ${WS_APICURIO_DB_INITIALIZE}
+      APICURIO_SHARE_FOR_EVERYONE: ${APICURIO_SHARE_FOR_EVERYONE}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  apicurio-studio-api:
+    image: 'apicurio/apicurio-studio-api:${APICURIO_API_VERSION}'
+    restart: on-failure
+    depends_on:
+      - apicurio-studio-db
+      - apicurio-studio-ws
+    ports:
+      - '9091:8080'
+    environment:
+      JAVA_TOOL_OPTIONS: '-Djava.net.preferIPv4Stack=true'
+
+      QUARKUS_PROFILE: ${QUARKUS_PROFILE}
+
+      APICURIO_KC_AUTH_URL: ${APICURIO_KC_AUTH_URL}
+      APICURIO_KC_REALM: ${APICURIO_KC_REALM}
+      APICURIO_KC_CLIENT_ID: ${API_APICURIO_KC_CLIENT_ID}
+
+      APICURIO_HUB_STORAGE_JDBC_TYPE: ${APICURIO_DB_TYPE}
+      APICURIO_DB_DRIVER_NAME: ${APICURIO_DB_DRIVER_NAME}
+      APICURIO_DB_CONNECTION_URL: ${APICURIO_DB_CONNECTION_URL}
+      APICURIO_DB_USER_NAME: ${APICURIO_DB_USER_NAME}
+      APICURIO_DB_PASSWORD: ${APICURIO_DB_PASSWORD}
+      APICURIO_DB_INITIALIZE: ${API_APICURIO_DB_INITIALIZE}
+
+      APICURIO_MICROCKS_API_URL: ${APICURIO_MICROCKS_API_URL}
+      APICURIO_MICROCKS_CLIENT_ID: ${APICURIO_MICROCKS_CLIENT_ID}
+      APICURIO_MICROCKS_CLIENT_SECRET: ${APICURIO_MICROCKS_CLIENT_SECRET}
+
+      APICURIO_GITHUB_API_URL: ${APICURIO_GITHUB_API_URL}
+      APICURIO_GITLAB_API_URL: ${APICURIO_GITLAB_API_URL}
+      APICURIO_BITBUCKET_API_URL: ${APICURIO_BITBUCKET_API_URL}
+      APICURIO_SHARE_FOR_EVERYONE: ${APICURIO_SHARE_FOR_EVERYONE}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  apicurio-studio-ui:
+    image: 'apicurio/apicurio-studio-ui:${APICURIO_UI_VERSION}'
+    restart: on-failure
+    depends_on:
+      - apicurio-studio-api
+      - apicurio-studio-ws
+    ports:
+      - '9093:8080'
+    environment:
+      JAVA_TOOL_OPTIONS: '-Djava.net.preferIPv4Stack=true'
+
+      QUARKUS_PROFILE: ${QUARKUS_PROFILE}
+
+      APICURIO_KC_CLIENT_ID: ${APICURIO_UI_KC_CLIENT_ID}
+      APICURIO_KC_AUTH_URL: ${APICURIO_KC_AUTH_URL}
+      APICURIO_KC_REALM: ${APICURIO_KC_REALM}
+      APICURIO_UI_HUB_API_URL: ${APICURIO_UI_HUB_API_URL}
+      APICURIO_UI_EDITING_URL: ${APICURIO_UI_EDITING_URL}
+      APICURIO_UI_FEATURE_MICROCKS: ${APICURIO_UI_FEATURE_MICROCKS}
+      APICURIO_UI_FEATURE_SHARE_WITH_EVERYONE: ${APICURIO_UI_FEATURE_SHARE_WITH_EVERYONE}
+      APICURIO_UI_LOGOUT_REDIRECT_URI: /
+      APICURIO_UI_VALIDATION_CHANNELNAME_REGEXP: ${APICURIO_UI_VALIDATION_CHANNELNAME_REGEXP}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+  
+  mongo:
+    image: mongo:3.4.23
+    volumes:
+      - "mongo_data2:/data/db"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  postman:
+    image: microcks/microcks-postman-runtime:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M
+
+  microcks:
+    depends_on:
+      - mongo
+      - postman
+    image: microcks/microcks:latest
+    volumes:
+      - ./config:/deployments/config
+    ports:
+      - "9900:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${MR_SPRING_PROFILES_ACTIVE}
+      SPRING_DATA_MONGODB_URI: ${MR_SPRING_DATA_MONGODB_URI}
+      SPRING_DATA_MONGODB_DATABASE: ${MR_SPRING_DATA_MONGODB_DATABASE}
+      POSTMAN_RUNNER_URL: ${MR_POSTMAN_RUNNER_URL}
+      TEST_CALLBACK_URL: ${MR_TEST_CALLBACK_URL}
+      KEYCLOAK_URL: ${MR_KEYCLOAK_URL}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 500M
+        reservations:
+          memory: 150M

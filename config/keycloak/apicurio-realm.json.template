@@ -739,14 +739,14 @@
     {
       "id": "0ca69b5c-7f5b-4f16-b8ba-cdca66eca9e1",
       "clientId": "apicurio-studio",
-      "rootUrl": "http://$HOST:8093",
-      "baseUrl": "http://$HOST:8093",
+      "rootUrl": "http://<IP_ADDRESS>:9093",
+      "baseUrl": "http://<IP_ADDRESS>:9093",
       "surrogateAuthRequired": false,
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "**********",
       "redirectUris": [
-        "http://$HOST:8093/*"
+        "http://<IP_ADDRESS>:9093/*"
       ],
       "webOrigins": [
         "+"
